@@ -55,9 +55,13 @@ Requirements:
 EU_COUNTRIES = %i[france germany italy] # Some EU Countries
 
 class TaxManager
-  def self.calculate(product_type, user_location, user_type, service_area = nil)
+  def self.calculate(product_type:, user_location: nil, user_type: nil, service_area: nil)
     case product_type
     when :good
+      raise ArgumentError, 'user_location is required for goods' if user_location.nil?
+
+      raise ArgumentError, 'user_type is required for goods' if user_type.nil?
+
       if user_location == :spain
         { tax: 'Spanish VAT', transaction_type: 'good' }
       elsif EU_COUNTRIES.include?(user_location)
@@ -70,6 +74,10 @@ class TaxManager
         { tax: 'No VAT', transaction_type: 'export' }
       end
     when :digital
+      raise ArgumentError, 'user_location is required for goods' if user_location.nil?
+
+      raise ArgumentError, 'user_type is required for goods' if user_type.nil?
+
       if user_location == :spain
         { tax: 'Spanish VAT', transaction_type: 'service, digital' }
       elsif EU_COUNTRIES.include?(user_location)
@@ -82,6 +90,8 @@ class TaxManager
         { tax: 'No VAT', transaction_type: 'service, digital' }
       end
     when :onsite
+      raise ArgumentError, 'service_area is required for onsite services' if service_area.nil?
+
       if service_area == :spain
         { tax: 'Spanish VAT', transaction_type: 'service, onsite' }
       else
@@ -99,8 +109,34 @@ end
 
 
 ############################## Main Program ##############################
-puts TaxManager.calculate(:good, :spain, :individual)
-puts TaxManager.calculate(:digital, :germany, :individual)
-puts TaxManager.calculate(:onsite, :spain, :individual)
-puts TaxManager.calculate(:onsite, :usa, :individual)
+# puts TaxManager.calculate(:good, :spain, :individual)
+# puts TaxManager.calculate(:digital, :germany, :individual)
+# puts TaxManager.calculate(:onsite, :spain, :individual)
+# puts TaxManager.calculate(:onsite, :usa, :individual)
 # puts TaxManager.calculate(:invalid, :spain, :individual)
+
+
+############################## Rspec Tests ##############################
+describe TaxManager do
+  describe '.calculate' do
+    it 'calculates tax for goods in Spain' do
+      expect(TaxManager.calculate(product_type: :good, user_location: :spain, user_type: :individual)).to eq({ tax: 'Spanish VAT', transaction_type: 'good' })
+    end
+
+    it 'calculates tax for digital services in EU for an individual' do
+      expect(TaxManager.calculate(product_type: :digital, user_location: :france, user_type: :individual)).to eq({ tax: 'france VAT', transaction_type: 'service, digital' })
+    end
+
+    it 'calculates reverse charge for goods to an EU company' do
+      expect(TaxManager.calculate(product_type: :good, user_location: :germany, user_type: :company)).to eq({ tax: 'No VAT', transaction_type: 'reverse charge' })
+    end
+
+    it 'marks goods sale as export outside EU' do
+      expect(TaxManager.calculate(product_type: :good, user_location: :usa, user_type: :individual)).to eq({ tax: 'No VAT', transaction_type: 'export' })
+    end
+
+    it 'calculates tax for onsite services in Spain' do
+      expect(TaxManager.calculate(product_type: :onsite, service_area: :spain)).to eq({ tax: 'Spanish VAT', transaction_type: 'service, onsite' })
+    end
+  end
+end
