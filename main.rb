@@ -1,4 +1,4 @@
-"""
+''"
 Assignment:
 -----------
 
@@ -50,11 +50,12 @@ Requirements:
         - Spanish VAT will be applied
         - Regardless of buyer location [ spain, inside EU, outside EU ] and buyer type (individual or company)
         - In this case, the place where the service is provided (where the course takes place) defines the applicable tax.
-"""
+"''
 
 class TaxManager
-  def self.calculate(product_type, user_location, user_type)
-    if product_type == :good
+  def self.calculate(product_type, user_location, user_type, service_area = nil)
+    case product_type
+    when :good
       if user_location == :spain
         { tax: 'Spanish VAT', transaction_type: 'good' }
       elsif [:france, :germany, :italy].include?(user_location)
@@ -66,7 +67,7 @@ class TaxManager
       else
         { tax: 'No VAT', transaction_type: 'export' }
       end
-    elsif product_type == :digital
+    when :digital
       if user_location == :spain
         { tax: 'Spanish VAT', transaction_type: 'service, digital' }
       elsif [:france, :germany, :italy].include?(user_location)
@@ -78,6 +79,14 @@ class TaxManager
       else
         { tax: 'No VAT', transaction_type: 'service, digital' }
       end
+    when :onsite
+      if service_area == :spain
+        { tax: 'Spanish VAT', transaction_type: 'service, onsite' }
+      else
+        { tax: 'No VAT', transaction_type: 'service, onsite' }
+      end
+    else
+      raise 'Unknown product type'
     end
   end
 end
@@ -90,3 +99,6 @@ end
 ############################## Main Program ##############################
 puts TaxManager.calculate(:good, :spain, :individual)
 puts TaxManager.calculate(:digital, :germany, :individual)
+puts TaxManager.calculate(:onsite, :spain, :individual)
+puts TaxManager.calculate(:onsite, :usa, :individual)
+# puts TaxManager.calculate(:invalid, :spain, :individual)
