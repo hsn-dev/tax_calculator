@@ -52,13 +52,15 @@ Requirements:
         - In this case, the place where the service is provided (where the course takes place) defines the applicable tax.
 "''
 
+EU_COUNTRIES = %i[france germany italy] # Some EU Countries
+
 class TaxManager
   def self.calculate(product_type, user_location, user_type, service_area = nil)
     case product_type
     when :good
       if user_location == :spain
         { tax: 'Spanish VAT', transaction_type: 'good' }
-      elsif [:france, :germany, :italy].include?(user_location)
+      elsif EU_COUNTRIES.include?(user_location)
         if user_type == :individual
           { tax: "#{user_location} VAT", transaction_type: 'good' }
         else
@@ -70,7 +72,7 @@ class TaxManager
     when :digital
       if user_location == :spain
         { tax: 'Spanish VAT', transaction_type: 'service, digital' }
-      elsif [:france, :germany, :italy].include?(user_location)
+      elsif EU_COUNTRIES.include?(user_location)
         if user_type == :individual
           { tax: "#{user_location} VAT", transaction_type: 'service, digital' }
         else
