@@ -52,7 +52,20 @@ Requirements:
         - In this case, the place where the service is provided (where the course takes place) defines the applicable tax.
 " ''
 
-EU_COUNTRIES = %i[france germany italy] # Some EU Countries
+module TaxRates
+  EU_COUNTRIES = %i[france germany italy].freeze # Some EU Countries
+  def self.rate(country)
+    case country
+    when :spain then 0.20
+    when *EU_COUNTRIES then 0.18
+    else 0
+    end
+  end
+
+  def self.eu_country?(country)
+    EU_COUNTRIES.include?(country)
+  end
+end
 
 class TaxProcessor
   def self.calculate(product_type:, user_location: nil, user_type: nil, service_area: nil)
@@ -70,98 +83,107 @@ class TaxProcessor
   end
 end
 
-  class PhysicalTaxProcessor
-    def initialize(user_location, user_type)
-      @user_location = user_location
-      @user_type = user_type
-    end
+class PhysicalTaxProcessor
+  def initialize(user_location, user_type)
+    @user_location = user_location
+    @user_type = user_type
+    validate!
+  end
 
-    def calculate
-      raise ArgumentError, 'user_location is required for goods' if @user_location.nil?
-      raise ArgumentError, 'user_type is required for goods' if @user_type.nil?
-
-      if @user_location == :spain
-        { tax: 'Spanish VAT', transaction_type: 'good' }
-      elsif EU_COUNTRIES.include?(@user_location)
-        if @user_type == :individual
-          { tax: "#{@user_location} VAT", transaction_type: 'good' }
-        else
-          { tax: 'No VAT', transaction_type: 'reverse charge' }
-        end
+  def calculate
+    if @user_location == :spain
+      { tax_rate: TaxRates.rate(@user_location), transaction_type: 'physical' }
+    elsif TaxRates.eu_country?(@user_location)
+      if @user_type == :individual
+        { tax_rate: TaxRates.rate(@user_location), transaction_type: 'physical' }
       else
-        { tax: 'No VAT', transaction_type: 'export' }
+        { tax_rate: 0, transaction_type: 'reverse charge' }
       end
+    else
+      { tax_rate: 0, transaction_type: 'export' }
     end
   end
 
-  class DigitalTaxProcessor
-    def initialize(user_location, user_type)
-      @user_location = user_location
-      @user_type = user_type
-    end
+  def validate!
+    raise ArgumentError, 'user_location is required' if @user_location.nil?
+    raise ArgumentError, 'user_type is required' if @user_type.nil?
+  end
+end
 
-    def calculate
-      raise ArgumentError, 'user_location is required for goods' if @user_location.nil?
-      raise ArgumentError, 'user_type is required for goods' if @user_type.nil?
+class DigitalTaxProcessor
+  def initialize(user_location, user_type)
+    @user_location = user_location
+    @user_type = user_type
+    validate!
+  end
 
-      if @user_location == :spain
-        { tax: 'Spanish VAT', transaction_type: 'service, digital' }
-      elsif EU_COUNTRIES.include?(@user_location)
-        if @user_type == :individual
-          { tax: "#{@user_location} VAT", transaction_type: 'service, digital' }
-        else
-          { tax: 'No VAT', transaction_type: 'reverse charge' }
-        end
+  def calculate
+    if @user_location == :spain
+      { tax_rate: TaxRates.rate(@user_location), transaction_type: 'service, digital' }
+    elsif TaxRates.eu_country?(@user_location)
+      if @user_type == :individual
+        { tax_rate: TaxRates.rate(@user_location), transaction_type: 'service, digital' }
       else
-        { tax: 'No VAT', transaction_type: 'service, digital' }
+        { tax_rate: 0, transaction_type: 'reverse charge' }
       end
+    else
+      { tax_rate: 0, transaction_type: 'service, digital' }
     end
   end
 
-  class OnsiteTaxProcessor
-    def initialize(service_area)
-      @service_area = service_area
-    end
+  def validate!
+    raise ArgumentError, 'user_location is required' if @user_location.nil?
+    raise ArgumentError, 'user_type is required' if @user_type.nil?
+  end
+end
 
-    def calculate
-      raise ArgumentError, 'service_area is required for onsite services' if @service_area.nil?
+class OnsiteTaxProcessor
+  def initialize(service_area)
+    @service_area = service_area
+    validate!
+  end
 
-      if @service_area == :spain
-        { tax: 'Spanish VAT', transaction_type: 'service, onsite' }
-      else
-        { tax: 'No VAT', transaction_type: 'service, onsite' }
-      end
+  def calculate
+    if @service_area == :spain
+      { tax_rate: TaxRates.rate(@service_area), transaction_type: 'service, onsite' }
+    else
+      { tax_rate: 0, transaction_type: 'service, onsite' }
     end
   end
 
-  ############################## Main Program ##############################
-  # puts TaxProcessor.calculate(:good, :spain, :individual)
-  # puts TaxProcessor.calculate(:digital, :germany, :individual)
-  # puts TaxProcessor.calculate(:onsite, :spain, :individual)
-  # puts TaxProcessor.calculate(:onsite, :usa, :individual)
-  # puts TaxProcessor.calculate(:invalid, :spain, :individual)
+  def validate!
+    raise ArgumentError, 'service_area is required for onsite services' if @service_area.nil?
+  end
+end
 
-  ############################## Rspec Tests ##############################
-  describe TaxProcessor do
-    describe '.calculate' do
-      it 'calculates tax for goods in Spain' do
-        expect(TaxProcessor.calculate(product_type: :good, user_location: :spain, user_type: :individual)).to eq({ tax: 'Spanish VAT', transaction_type: 'good' })
-      end
+############################## Main Program ##############################
+# puts TaxProcessor.calculate(:good, :spain, :individual)
+# puts TaxProcessor.calculate(:digital, :germany, :individual)
+# puts TaxProcessor.calculate(:onsite, :spain, :individual)
+# puts TaxProcessor.calculate(:onsite, :usa, :individual)
+# puts TaxProcessor.calculate(:invalid, :spain, :individual)
 
-      it 'calculates tax for digital services in EU for an individual' do
-        expect(TaxProcessor.calculate(product_type: :digital, user_location: :france, user_type: :individual)).to eq({ tax: 'france VAT', transaction_type: 'service, digital' })
-      end
+############################## Rspec Tests ##############################
+describe TaxProcessor do
+  describe '.calculate' do
+    it 'calculates tax for goods in Spain' do
+      expect(TaxProcessor.calculate(product_type: :good, user_location: :spain, user_type: :individual)).to eq({ tax_rate: 0.20, transaction_type: 'physical' })
+    end
 
-      it 'calculates reverse charge for goods to an EU company' do
-        expect(TaxProcessor.calculate(product_type: :good, user_location: :germany, user_type: :company)).to eq({ tax: 'No VAT', transaction_type: 'reverse charge' })
-      end
+    it 'calculates tax for digital services in EU for an individual' do
+      expect(TaxProcessor.calculate(product_type: :digital, user_location: :france, user_type: :individual)).to eq({ tax_rate: 0.18, transaction_type: 'service, digital' })
+    end
 
-      it 'marks goods sale as export outside EU' do
-        expect(TaxProcessor.calculate(product_type: :good, user_location: :usa, user_type: :individual)).to eq({ tax: 'No VAT', transaction_type: 'export' })
-      end
+    it 'calculates reverse charge for goods to an EU company' do
+      expect(TaxProcessor.calculate(product_type: :good, user_location: :germany, user_type: :company)).to eq({ tax_rate: 0, transaction_type: 'reverse charge' })
+    end
 
-      it 'calculates tax for onsite services in Spain' do
-        expect(TaxProcessor.calculate(product_type: :onsite, service_area: :spain)).to eq({ tax: 'Spanish VAT', transaction_type: 'service, onsite' })
-      end
+    it 'marks goods sale as export outside EU' do
+      expect(TaxProcessor.calculate(product_type: :good, user_location: :usa, user_type: :individual)).to eq({ tax_rate: 0, transaction_type: 'export' })
+    end
+
+    it 'calculates tax for onsite services in Spain' do
+      expect(TaxProcessor.calculate(product_type: :onsite, service_area: :spain)).to eq({ tax_rate: 0.20, transaction_type: 'service, onsite' })
     end
   end
+end
