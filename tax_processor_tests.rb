@@ -7,11 +7,11 @@ require_relative 'tax_rates'
 describe TaxProcessor do
   describe '.calculate' do
     it 'calculates tax for goods in Spain' do
-      expect(described_class.calculate(product_type: :good, user_location: :spain, user_type: :individual)).to eq({ tax_rate: 0.20, transaction_type: 'physical' })
+      expect(described_class.calculate(product_type: :good, user_location: :spain, user_type: :individual)).to eq({ tax_rate: 0.21, transaction_type: 'physical' })
     end
 
     it 'calculates tax for digital services in EU for an individual' do
-      expect(described_class.calculate(product_type: :digital, user_location: :france, user_type: :individual)).to eq({ tax_rate: 0.18, transaction_type: 'service, digital' })
+      expect(described_class.calculate(product_type: :digital, user_location: :france, user_type: :individual)).to eq({ tax_rate: 0.20, transaction_type: 'service, digital' })
     end
 
     it 'calculates reverse charge for goods to an EU company' do
@@ -23,7 +23,11 @@ describe TaxProcessor do
     end
 
     it 'calculates tax for onsite services in Spain' do
-      expect(described_class.calculate(product_type: :onsite, service_area: :spain)).to eq({ tax_rate: 0.20, transaction_type: 'service, onsite' })
+      expect(described_class.calculate(product_type: :onsite, service_area: :spain)).to eq({ tax_rate: 0.21, transaction_type: 'service, onsite' })
+    end
+
+    it 'calculates tax for onsite services in Germany' do
+      expect(described_class.calculate(product_type: :onsite, service_area: :germany)).to eq({ tax_rate: 0.19, transaction_type: 'service, onsite' })
     end
   end
 end

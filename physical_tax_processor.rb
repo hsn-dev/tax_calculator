@@ -1,8 +1,9 @@
-class PhysicalTaxProcessor
-  def initialize(user_location, user_type)
-    @user_location = user_location
-    @user_type = user_type
-    validate!
+class PhysicalTaxProcessor < BaseProcessor
+
+  def initialize(transaction)
+    super(transaction)
+    @user_location = transaction.user_location
+    @user_type = transaction.user_type
   end
 
   def calculate
@@ -19,8 +20,4 @@ class PhysicalTaxProcessor
     end
   end
 
-  def validate!
-    raise ArgumentError, 'user_location is required' if @user_location.nil?
-    raise ArgumentError, 'user_type is required' if @user_type.nil?
-  end
 end
